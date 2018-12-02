@@ -3,7 +3,7 @@ manage your wechat with telegram bot
 
 ![bot](/img/bot.png)
 
-![wx](/img/wx.png)
+![wx](/img/wx.jpg)
 
 - make sure you modify your `bot.conf` and put your tgbot key there
 - make sure `tgfiles` and `wxfile` folder exists
