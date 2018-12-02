@@ -1,6 +1,10 @@
 # wx2tg_bot
 manage your wechat with telegram bot
 
+![bot](/img/bot.png)
+
+![wx](/img/wx.png)
+
 - make sure you modify your `bot.conf` and put your tgbot key there
 - make sure `tgfiles` and `wxfile` folder exists
 - install any deps bedfore running `wxbot.py`
