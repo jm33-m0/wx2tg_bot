@@ -22,11 +22,14 @@ try:
             value = line.split('=')[1]
             if line.startswith("chat_id"):
                 CHAT_ID = value
-                print(CHAT_ID)
+                print("chatid: ", CHAT_ID)
             elif line.startswith("tgbot"):
                 TGKEY = value
-                print(TGKEY)
+                print("tgkey", TGKEY)
+            elif line.startswith("owner"):
+                OWNER_ID = value
 except BaseException:
+    print(traceback.format_exc())
     print("can't read bot.conf")
     sys.exit(1)
 
@@ -122,14 +125,21 @@ def start(bot, update):
         'I am your WeChat bot, I handle your fucking WeChat')
 
     chat_id = update.message.chat.id
+    owner_id = update.message.from_user.id
+
+    with open("bot.conf") as confread:
+        for item in confread:
+            item = item.strip()
+            if item.startswith("chat"):
+                confread.close()
+                return
+            print("/start: ", item)
+        confread.close()
 
     botconf = open('bot.conf', 'a+')
-    for item in botconf:
-        item = item.strip()
-        if "chat_id" in item:
-            botconf.close()
-            return
-    botconf.write("\nchat_id={}\n".format(chat_id))
+    botconf.write("chat_id={}\n".format(chat_id))
+    botconf.write("owner={}\n".format(owner_id))
+    botconf.close()
 
 
 def reply_photo_to_wechat(bot, update):
@@ -193,19 +203,27 @@ def reply_to_wechat(bot, update):
         msgid = update.message.message_id
         userid = update.message.from_user.id
 
-        # try to remove members
-        try:
-            print(TGBOT.get_chat_administrators(chatid))
-            TGBOT.delete_message(chatid, msgid)
-            TGBOT.kick_chat_member(chatid, userid)
-        except BaseException:
-            print(traceback.format_exc())
-
-        # send shit pics to strangers
-        for index in range(0, 6):
+        # fuck strangers
+        if userid != OWNER_ID:
+            # try to remove members
             try:
-                TGBOT.send_photo(chatid,
-                                 open("./tgfiles/shit{}.jpg".format(index), "rb"))
+                print(TGBOT.get_chat_administrators(chatid))
+                TGBOT.delete_message(chatid, msgid)
+                TGBOT.kick_chat_member(chatid, userid)
+            except BaseException:
+                print(traceback.format_exc())
+
+            # send shit pics to strangers
+            for index in range(0, 6):
+                try:
+                    TGBOT.send_photo(chatid,
+                                     open("./tgfiles/shit{}.jpg".format(index), "rb"))
+                except BaseException:
+                    pass
+
+            # send final words
+            try:
+                TGBOT.send_message(chatid, "Sorry but I don't like strangers")
             except BaseException:
                 pass
 
