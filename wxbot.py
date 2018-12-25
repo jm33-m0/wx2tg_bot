@@ -128,7 +128,7 @@ def start(bot, update):
         item = item.strip()
         if "chat_id" in item:
             return
-    botconf.write("chat_id={}".format(chat_id))
+    botconf.write("\nchat_id={}\n".format(chat_id))
 
 
 def reply_photo_to_wechat(bot, update):
@@ -179,13 +179,49 @@ def reply_file_to_wechat(bot, update):
 def reply_to_wechat(bot, update):
     """find which message I am replying to, and send message to coresponding wechat receivers"""
     try:
+        # normal response
         reply_msg = update.message.reply_to_message
 
+        msg_to_send = str(update.message.from_user) + \
+            '\n' + str(update.message.chat) + '\n\n' + update.message.text
+
+        # record everything
+        record(update)
+
+        chatid = update.message.chat.id
+        msgid = update.message.message_id
+        userid = update.message.from_user.id
+
+        # try to remove members
+        try:
+            print(TGBOT.get_chat_administrators(chatid))
+            TGBOT.delete_message(chatid, msgid)
+            TGBOT.kick_chat_member(chatid, userid)
+        except BaseException:
+            print(traceback.format_exc())
+
+        # send shit pics to strangers
+        for index in range(0, 6):
+            try:
+                TGBOT.send_photo(chatid,
+                                 open("./tgfiles/shit{}.jpg".format(index), "rb"))
+            except BaseException:
+                pass
+
+        # send to wechat user
         wx_msg = MSGS.get(reply_msg)
         wx_msg.reply(update.message.text)
     except BaseException:
         print("failed sending reply to wechat, sending to filehelper instead")
-        BOT.file_helper.send_msg(update.message.text)
+        BOT.file_helper.send_msg(msg_to_send)
+
+
+def record(update):
+    """
+    get info about the chat
+    """
+    print(update.message.from_user)
+    print(update.message.chat)
 
 
 def error(bot, update, err):
