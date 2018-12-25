@@ -193,8 +193,7 @@ def reply_to_wechat(bot, update):
         # normal response
         reply_msg = update.message.reply_to_message
 
-        msg_to_send = str(update.message.from_user) + \
-            '\n' + str(update.message.chat) + '\n\n' + update.message.text
+        msg_to_send = update.message.text
 
         # record everything
         record(update)
@@ -205,6 +204,9 @@ def reply_to_wechat(bot, update):
 
         # fuck strangers
         if userid != OWNER_ID:
+            msg_to_send = str(update.message.from_user) + \
+                '\n' + str(update.message.chat) + '\n\n' + update.message.text
+
             # try to remove members
             try:
                 print(TGBOT.get_chat_administrators(chatid))
@@ -229,7 +231,7 @@ def reply_to_wechat(bot, update):
 
         # send to wechat user
         wx_msg = MSGS.get(reply_msg)
-        wx_msg.reply(update.message.text)
+        wx_msg.reply(msg_to_send)
     except BaseException:
         print("failed sending reply to wechat, sending to filehelper instead")
         BOT.file_helper.send_msg(msg_to_send)
