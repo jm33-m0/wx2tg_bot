@@ -127,6 +127,7 @@ def start(bot, update):
     for item in botconf:
         item = item.strip()
         if "chat_id" in item:
+            botconf.close()
             return
     botconf.write("\nchat_id={}\n".format(chat_id))
 
