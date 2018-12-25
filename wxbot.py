@@ -27,7 +27,7 @@ try:
                 TGKEY = value
                 print("tgkey", TGKEY)
             elif line.startswith("owner"):
-                OWNER_ID = value
+                OWNER_ID = int(value)
 except BaseException:
     print(traceback.format_exc())
     print("can't read bot.conf")
