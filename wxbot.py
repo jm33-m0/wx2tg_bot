@@ -229,6 +229,8 @@ def reply_to_wechat(bot, update):
             except BaseException:
                 pass
 
+            return
+
         # send to wechat user
         wx_msg = MSGS.get(reply_msg)
         wx_msg.reply(msg_to_send)
