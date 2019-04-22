@@ -1,5 +1,12 @@
 #!/usr/bin/python3
 
+'''
+this script forwards your wechat messages to telegram,
+you can also send reply to each message
+'''
+
+# pylint: disable=unused-argument,broad-except
+
 import logging
 import traceback
 import sys
@@ -8,6 +15,12 @@ import wxpy
 
 import telegram
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+
+# Enable logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+
+LOGGER = logging.getLogger(__name__)
 
 # init
 TGKEY = 0
@@ -22,15 +35,17 @@ try:
             value = line.split('=')[1]
             if line.startswith("chat_id"):
                 CHAT_ID = value
-                print("chatid: ", CHAT_ID)
+                logging.debug("chatid: %s", str(CHAT_ID))
             elif line.startswith("tgbot"):
                 TGKEY = value
-                print("tgkey", TGKEY)
+                logging.debug("tgkey: %s", str(TGKEY))
             elif line.startswith("owner"):
                 OWNER_ID = int(value)
+except FileNotFoundError:
+    logging.error("can't find bot.conf")
 except BaseException:
-    print(traceback.format_exc())
-    print("can't read bot.conf")
+    logging.warning(traceback.format_exc())
+    logging.error("can't read bot.conf")
     sys.exit(1)
 
 # start wechat login and define telegram bot
@@ -55,65 +70,59 @@ def get_message(msg):
 
     # fwd everything to telegram
     if msg.type == wxpy.ATTACHMENT:
-        print("get file")
+        logging.info("get file")
         filename_origin = msg.file_name
         # in case telegram cant parse zh_CN file names
         file_to_send = "file." + filename_origin.split('.')[-1]
 
         msg.get_file(save_path="./wxfiles/{}".format(file_to_send))
-        print("downloaded")
+        logging.info("downloaded")
         TGBOT.send_message(CHAT_ID, str(msg) + " :\n" + filename_origin)
         try:
             TGBOT.send_document(CHAT_ID, open(
                 "./wxfiles/{}".format(file_to_send), "rb"), filename=filename_origin)
         except BaseException:
-            print(traceback.format_exc())
+            logging.warning(traceback.format_exc())
             TGBOT.send_document(CHAT_ID, open(
                 "./wxfiles/{}".format(file_to_send), "rb"), filename=file_to_send)
             return
-        print("sent")
+        logging.info("sent")
     elif msg.type == wxpy.RECORDING:
-        print("get voice")
+        logging.info("get voice")
         msg.get_file(save_path="./wxfiles/voice")
-        print("downloaded")
+        logging.info("downloaded")
         try:
             TGBOT.send_voice(CHAT_ID, open(
                 "./wxfiles/voice", "rb"))
         except BaseException:
-            print(traceback.format_exc())
+            logging.warning(traceback.format_exc())
             return
-        print("sent")
+        logging.info("sent")
     elif msg.type == wxpy.PICTURE:
-        print("get img")
+        logging.info("get img")
         msg.get_file(save_path="./wxfiles/img")
-        print("downloaded")
+        logging.info("downloaded")
         try:
             TGBOT.send_photo(CHAT_ID, open(
                 "./wxfiles/img", "rb"))
         except BaseException:
-            print(traceback.format_exc())
+            logging.warning(traceback.format_exc())
             return
-        print("sent")
+        logging.info("sent")
     elif msg.type == wxpy.VIDEO:
-        print("got video")
+        logging.info("got video")
         msg.get_file(save_path="./wxfiles/video")
-        print("downloaded")
+        logging.info("downloaded")
         try:
             TGBOT.send_video(CHAT_ID, open(
                 "./wxfiles/video", "rb"))
         except BaseException:
-            print(traceback.format_exc())
+            logging.warning(traceback.format_exc())
             return
-        print("sent")
+        logging.info("sent")
 
 
 # start telegram bot
-
-# Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
-
-logger = logging.getLogger(__name__)
 
 # Define a few command handlers. These usually take the two arguments bot and
 # update. Error handlers also receive the raised TelegramError object in error.
@@ -127,15 +136,17 @@ def start(bot, update):
     chat_id = update.message.chat.id
     owner_id = update.message.from_user.id
 
+    # check if `chat` conf exists
     with open("bot.conf") as confread:
         for item in confread:
             item = item.strip()
             if item.startswith("chat"):
                 confread.close()
                 return
-            print("/start: ", item)
+            logging.debug("command /start reading: %s", item)
         confread.close()
 
+    # write `chat` conf
     botconf = open('bot.conf', 'a+')
     botconf.write("chat_id={}\n".format(chat_id))
     botconf.write("owner={}\n".format(owner_id))
@@ -154,8 +165,9 @@ def reply_photo_to_wechat(bot, update):
         wx_msg = MSGS.get(reply_msg)
         wx_msg.reply_image("./tgfiles/pic")
     except BaseException:
-        print(traceback.format_exc())
-        print("failed sending photo to wechat, sending to filehelper instead")
+        logging.warning(traceback.format_exc())
+        logging.error(
+            "failed sending photo to wechat, sending to filehelper instead")
         BOT.file_helper.send_image("./tgfiles/pic")
 
 
@@ -172,8 +184,9 @@ def reply_file_to_wechat(bot, update):
         wx_msg = MSGS.get(reply_msg)
         wx_msg.reply_file("./tgfiles/{}".format(file_name))
     except BaseException:
-        print(traceback.format_exc())
-        print("failed sending file to wechat, sending it to filehelper instead")
+        logging.warning(traceback.format_exc())
+        logging.error(
+            "failed sending file to wechat, sending it to filehelper instead")
 
         try:
             BOT.file_helper.send_file("./tgfiles/{}".format(file_name))
@@ -209,11 +222,11 @@ def reply_to_wechat(bot, update):
 
             # try to remove members
             try:
-                print(TGBOT.get_chat_administrators(chatid))
+                logging.info(TGBOT.get_chat_administrators(chatid))
                 TGBOT.delete_message(chatid, msgid)
                 TGBOT.kick_chat_member(chatid, userid)
             except BaseException:
-                print(traceback.format_exc())
+                logging.error(traceback.format_exc())
 
             # send shit pics to strangers
             for index in range(0, 6):
@@ -221,13 +234,13 @@ def reply_to_wechat(bot, update):
                     TGBOT.send_photo(chatid,
                                      open("./tgfiles/shit{}.jpg".format(index), "rb"))
                 except BaseException:
-                    pass
+                    logging.warning("shit pics not found")
 
             # send final words
             try:
                 TGBOT.send_message(chatid, "Sorry but I don't like strangers")
             except BaseException:
-                pass
+                logging.warning("can't send final words")
 
             return
 
@@ -235,7 +248,8 @@ def reply_to_wechat(bot, update):
         wx_msg = MSGS.get(reply_msg)
         wx_msg.reply(msg_to_send)
     except BaseException:
-        print("failed sending reply to wechat, sending to filehelper instead")
+        logging.error(
+            "failed sending reply to wechat, sending to filehelper instead")
         BOT.file_helper.send_msg(msg_to_send)
 
 
@@ -243,13 +257,13 @@ def record(update):
     """
     get info about the chat
     """
-    print(update.message.from_user)
-    print(update.message.chat)
+    logging.info(update.message.from_user)
+    logging.info(update.message.chat)
 
 
 def error(bot, update, err):
     """Log Errors caused by Updates."""
-    logger.warning('Update "%s" caused error "%s"', update, err)
+    LOGGER.warning('Update "%s" caused error "%s"', update, err)
 
 
 def start_tgbot():
@@ -258,18 +272,20 @@ def start_tgbot():
     updater = Updater(TGKEY)
 
     # Get the dispatcher to register handlers
-    dp = updater.dispatcher
+    wx2tg_dispatcher = updater.dispatcher
 
     # on different commands - answer in Telegram
-    dp.add_handler(CommandHandler("start", start))
+    wx2tg_dispatcher.add_handler(CommandHandler("start", start))
 
     # on noncommand i.e message - echo the message on Telegram
-    dp.add_handler(MessageHandler(Filters.text, reply_to_wechat))
-    dp.add_handler(MessageHandler(Filters.document, reply_file_to_wechat))
-    dp.add_handler(MessageHandler(Filters.photo, reply_photo_to_wechat))
+    wx2tg_dispatcher.add_handler(MessageHandler(Filters.text, reply_to_wechat))
+    wx2tg_dispatcher.add_handler(MessageHandler(
+        Filters.document, reply_file_to_wechat))
+    wx2tg_dispatcher.add_handler(MessageHandler(
+        Filters.photo, reply_photo_to_wechat))
 
     # log all errors
-    dp.add_error_handler(error)
+    wx2tg_dispatcher.add_error_handler(error)
 
     # Start the Bot
     updater.start_polling()
@@ -283,4 +299,4 @@ if __name__ == "__main__":
         # start WeChat bot on main thread
         BOT.join()
     except BaseException:
-        print(traceback.format_exc())
+        logging.error(traceback.format_exc())
