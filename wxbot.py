@@ -25,7 +25,8 @@ LOGGER = logging.getLogger(__name__)
 # init
 TGKEY = 0
 CHAT_ID = 0
-MSGS = {}
+MSGS = {}  # we use list to cache tgmsg:wxmsg
+TGMSGS = []  # retain the order of msgs received
 
 # read config file
 try:
@@ -60,13 +61,22 @@ def get_message(msg):
     get new wechat msg and deal with it
     '''
 
+    silent = False
+
     # ignore group messages
     if isinstance(msg.chat, wxpy.Group) and not msg.is_at:
-        return
+        logging.warning("normal group message, silent=True")
+        silent = True
+
+    # ignore sharing
+    if chat_type(str(msg)) == "unknown":
+        silent = True
 
     # remember the messages received, in case i want to reply later
-    tg_message = TGBOT.send_message(CHAT_ID, str(msg))
+    tg_message = TGBOT.send_message(
+        chat_id=CHAT_ID, text=str(msg), disable_notification=silent)
     MSGS.update({tg_message: msg})
+    TGMSGS.append(tg_message)
 
     # fwd everything to telegram
     if msg.type == wxpy.ATTACHMENT:
@@ -152,6 +162,8 @@ def start(bot, update):
     botconf.write("owner={}\n".format(owner_id))
     botconf.close()
 
+
+# how we reply to wechat, from tgbot
 
 def reply_photo_to_wechat(bot, update):
     """find which message I am replying to, and send message to coresponding wechat receivers"""
@@ -245,12 +257,41 @@ def reply_to_wechat(bot, update):
             return
 
         # send to wechat user
-        wx_msg = MSGS.get(reply_msg)
-        wx_msg.reply(msg_to_send)
+
+        # if we send msg to tgbot directly,
+        # it will try to send the msg to the most recent wechat conversation, without quoting
+        wx_msg = MSGS.get(reply_msg, "")
+        if wx_msg == "":
+            wx_msg = MSGS.get(TGMSGS[-1])
+            logging.warning("send without quoting")
+            wx_msg.reply(msg_to_send)
+            return
+
+        chattype = chat_type(str(wx_msg))
+        if chattype != "unknown":
+            if chattype != "private":
+                wx_msg.reply(
+                    "「{}」\n-----\n@{}\u2005".format(wx_msg.text, wx_msg.member.name)+msg_to_send)
+            else:
+                wx_msg.reply(
+                    "「{}」\n-----\n".format(wx_msg.text)+msg_to_send)
+
     except BaseException:
         logging.error(
-            "failed sending reply to wechat, sending to filehelper instead")
+            "failed sending reply to wechat, sending to filehelper instead\n%s",
+            traceback.format_exc())
         BOT.file_helper.send_msg(msg_to_send)
+
+
+def chat_type(msg):
+    '''is this msg from group chat, private chat, or else?'''
+    if " › " in msg:
+        member = str(msg).split(' › ')[1].split(' : ')[0]
+        return member
+    if " › " not in msg:
+        return "private"
+
+    return "unknown"
 
 
 def record(update):
