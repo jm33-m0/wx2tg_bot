@@ -1,25 +1,21 @@
 # wx2tg_bot
-manage your wechat with telegram bot
+Manage your WeChat with a Telegram bot
 
-
-## deps
-
+## Dependencies
 ```
 python3 -m pip install wxpy python-telegram-bot
 python3 ./wxbot.py
 ```
+## Before Running
+- Make sure to modify your `bot.conf` and put your tgbot key there
+- Make sure that `tgfiles` and `wxfile` folders exist
+- Install any dependencies before running `wxbot.py`
 
-## how to use
+## Start Running
+- Run `wxbot.py` and scan the QR code to log into WeChat
+- Open a chat with your Telegram bot and use the `/start` command
+- Run `wxbot.py` again
 
-- make sure you modify your `bot.conf` and put your tgbot key there
-- make sure `tgfiles` and `wxfile` folder exists
-- install any deps before running `wxbot.py`
-- run `wxbot.py` and scan the qr code to log into wechat
-- open a chat with your telegram bot, and use the `/start` command
-- run `wxbot.py` again
-
-## screenshots
-
+## Screenshots
 ![bot](/img/bot.png)
-
 ![wx](/img/wx.jpg)
